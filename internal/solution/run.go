@@ -20,7 +20,7 @@ func Run(args []string) error {
 	case 1:
 		switch section {
 		case "a":
-			day1a.Solve(inputFilePath)
+			return day1a.Solve(inputFilePath)
 		case "b":
 
 		}
