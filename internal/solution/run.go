@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	day1a "github.com/ArttuOll/aoc-2025/internal/day1/a"
+	day1b "github.com/ArttuOll/aoc-2025/internal/day1/b"
 )
 
 func Run(args []string) error {
@@ -22,7 +23,7 @@ func Run(args []string) error {
 		case "a":
 			return day1a.Solve(inputFilePath)
 		case "b":
-
+			return day1b.Solve(inputFilePath)
 		}
 	default:
 		return fmt.Errorf("no puzzle found for day %v", day)
