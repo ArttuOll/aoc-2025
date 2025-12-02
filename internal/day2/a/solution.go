@@ -8,20 +8,17 @@ import (
 	"github.com/ArttuOll/aoc-2025/internal/input"
 )
 
-func validateId(id int) bool {
+func validateID(id int) bool {
 	idString := strconv.Itoa(id)
-	firstPart := idString[0 : len(idString)/2]
-	secondPart := idString[len(idString)/2:]
-
-	return firstPart != secondPart
+	return idString[0:len(idString)/2] != idString[len(idString)/2:]
 }
 
-type IdRange struct {
+type IDRange struct {
 	start int
 	end   int
 }
 
-func (idRange *IdRange) Parse(rangeString string) error {
+func (idRange *IDRange) Parse(rangeString string) error {
 	parts := strings.Split(rangeString, "-")
 	start, err := strconv.Atoi(parts[0])
 	if err != nil {
@@ -38,10 +35,10 @@ func (idRange *IdRange) Parse(rangeString string) error {
 	return nil
 }
 
-func (idRange *IdRange) InvalidIds() []int {
-	invalidIds := make([]int, 0)
+func (idRange *IDRange) InvalidIDs() []int {
+	var invalidIds []int
 	for i := idRange.start; i <= idRange.end; i++ {
-		if !validateId(i) {
+		if !validateID(i) {
 			invalidIds = append(invalidIds, i)
 		}
 	}
@@ -57,16 +54,20 @@ func Solve(inputFilePath string) error {
 
 	idRangeStrings := strings.Split(input[0], ",")
 
-	invalidIds := make([]int, 0)
+	var invalidIDs []int
 	for _, idRangeString := range idRangeStrings {
-		idRange := IdRange{}
-		idRange.Parse(idRangeString)
-		invalidIds = append(invalidIds, idRange.InvalidIds()...)
+		idRange := IDRange{}
+
+		if err := idRange.Parse(idRangeString); err != nil {
+			return fmt.Errorf("unable to parse ID range: %s", idRangeString)
+		}
+
+		invalidIDs = append(invalidIDs, idRange.InvalidIDs()...)
 	}
 
 	sum := 0
-	for _, invalidId := range invalidIds {
-		sum += invalidId
+	for _, invalidID := range invalidIDs {
+		sum += invalidID
 	}
 
 	fmt.Println(sum)
