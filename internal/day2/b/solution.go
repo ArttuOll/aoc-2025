@@ -8,34 +8,29 @@ import (
 	"github.com/ArttuOll/aoc-2025/internal/input"
 )
 
-func allSame(idStrings []string) bool {
-	for _, idString := range idStrings {
-		if idString != idStrings[0] {
-			return false
-		}
-	}
-
-	return true
-}
-
-func validateId(id int) bool {
+func validateID(id int) bool {
 	idString := strconv.Itoa(id)
+	length := len(idString)
 
-	for partLength := 1; partLength < len(idString); partLength++ {
-		if len(idString)%partLength != 0 {
+	for partLength := 1; partLength < length; partLength++ {
+		if length%partLength != 0 {
 			// The ID can't be divided into equal length parts of this size
 			continue
 		}
 
-		// Divide the ID into parts of equal length
-		parts := make([]string, 0)
-		for i := 0; i+partLength <= len(idString); i = i + partLength {
-			parts = append(parts, idString[i:i+partLength])
+		firstPart := idString[:partLength]
+		allPartsAreSame := true
+		for i := 0; i+partLength <= length; i += partLength {
+			if idString[i:i+partLength] != firstPart {
+				allPartsAreSame = false
+			}
 		}
 
-		if allSame(parts) {
+		// We were able to divide the ID into equal length parts that all had the same content
+		if allPartsAreSame {
 			return false
 		}
+
 	}
 
 	return true
@@ -66,7 +61,7 @@ func (idRange *IdRange) Parse(rangeString string) error {
 func (idRange *IdRange) InvalidIds() []int {
 	invalidIds := make([]int, 0)
 	for i := idRange.start; i <= idRange.end; i++ {
-		if !validateId(i) {
+		if !validateID(i) {
 			invalidIds = append(invalidIds, i)
 		}
 	}
