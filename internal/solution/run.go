@@ -6,7 +6,7 @@ import (
 
 	day1a "github.com/ArttuOll/aoc-2025/internal/day1/a"
 	day1b "github.com/ArttuOll/aoc-2025/internal/day1/b"
-	day2a "github.com/ArttuOll/aoc-2025/internal/day2/b"
+	day2a "github.com/ArttuOll/aoc-2025/internal/day2/a"
 	day2b "github.com/ArttuOll/aoc-2025/internal/day2/b"
 )
 
