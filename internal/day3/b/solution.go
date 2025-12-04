@@ -61,38 +61,33 @@ func pruneJoltage(digits []int) int {
 	return joltage
 }
 
+func findLargestJoltage(batteries []int, digits []int, window []int, counter int) {
+	if counter == 3 {
+		return
+	}
+
+	max := slices.Max(window)
+	indexOfMax := lastIndex(batteries, max)
+
+	digits[indexOfMax] = max
+	batteries[indexOfMax] = 0
+
+	if len(batteries[indexOfMax:]) == 0 || slices.Max(batteries[indexOfMax:]) == 0 {
+		findLargestJoltage(batteries, digits, batteries[:indexOfMax], counter+1)
+	} else {
+		findLargestJoltage(batteries, digits, batteries[indexOfMax:], counter+1)
+	}
+}
+
 func (b *Bank) GetLargestJoltage() int {
 	batteries := make([]int, len(b.batteries))
 	copy(batteries, b.batteries)
 
 	digits := make([]int, len(b.batteries))
 
-	result := 0
-	counter := 0
-	for {
-		if counter == 12 {
-			break
-		}
-
-		max := slices.Max(batteries)
-		indexOfMax := lastIndex(batteries, max)
-
-		digits[indexOfMax] = max
-		batteries[indexOfMax] = 0
-
-		newResult := pruneJoltage(digits)
-		if newResult < result {
-			digits[indexOfMax] = 0
-			batteries[indexOfMax] = 0
-			continue
-		}
-
-		result = pruneJoltage(digits)
-		counter++
-	}
+	findLargestJoltage(batteries, digits, batteries, 0)
 
 	return pruneJoltage(digits)
-
 }
 
 func Solve(inputFilePath string) error {
