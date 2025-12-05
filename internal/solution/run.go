@@ -10,6 +10,8 @@ import (
 	day2b "github.com/ArttuOll/aoc-2025/internal/day2/b"
 	day3a "github.com/ArttuOll/aoc-2025/internal/day3/a"
 	day3b "github.com/ArttuOll/aoc-2025/internal/day3/b"
+	day4a "github.com/ArttuOll/aoc-2025/internal/day4/a"
+	day4b "github.com/ArttuOll/aoc-2025/internal/day4/b"
 )
 
 func Run(args []string) error {
@@ -42,6 +44,13 @@ func Run(args []string) error {
 			return day3a.Solve(inputFilePath)
 		case "b":
 			return day3b.Solve(inputFilePath)
+		}
+	case 4:
+		switch section {
+		case "a":
+			return day4a.Solve(inputFilePath)
+		case "b":
+			return day4b.Solve(inputFilePath)
 		}
 	default:
 		return fmt.Errorf("no puzzle found for day %v", day)
