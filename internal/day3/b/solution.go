@@ -2,92 +2,80 @@ package b
 
 import (
 	"fmt"
-	"log"
-	"slices"
+	"math"
 	"strconv"
-	"strings"
 
 	"github.com/ArttuOll/aoc-2025/internal/input"
 )
 
-func lastIndex(s []int, target int) int {
-	result := 0
-	for i, e := range s {
-		if e == target {
-			result = i
-		}
+type CacheKey struct {
+	subBank string
+	counter int
+}
+
+func findLargestJoltage(batteries string, counter int, cache map[CacheKey]int) (int, error) {
+	if counter == 0 {
+		return 0, nil
 	}
 
-	return result
-}
-
-type Bank struct {
-	batteries []int
-}
-
-func (b *Bank) Parse(inputString string) error {
-	stringJoltages := strings.Split(inputString, "")
-
-	var batteries []int
-	for _, joltage := range stringJoltages {
-		joltageInt, err := strconv.Atoi(joltage)
+	// Shortcut: we need to return all of the remaining digits
+	if len(batteries) == counter {
+		result, err := strconv.Atoi(batteries)
 		if err != nil {
-			return fmt.Errorf("unable to convert joltage to int: %s", joltage)
+			return 0, fmt.Errorf("converting bank slice %v to integer failed", result)
 		}
 
-		batteries = append(batteries, joltageInt)
+		return result, nil
 	}
 
-	b.batteries = batteries
-
-	return nil
-}
-
-func pruneJoltage(digits []int) int {
-	var filtered []string
-	for _, digit := range digits {
-		if digit == 0 {
-			continue
-		}
-
-		filtered = append(filtered, strconv.Itoa(digit))
-	}
-
-	joltage, err := strconv.Atoi(strings.Join(filtered, ""))
+	firstDigit, err := strconv.Atoi(string(batteries[0]))
 	if err != nil {
-		log.Fatal("combining joltages to an integer failed. You did something wrong.")
+		return 0, fmt.Errorf("converting joltage string %v to integer failed", firstDigit)
 	}
 
-	return joltage
-}
+	substring := batteries[1:]
 
-func findLargestJoltage(batteries []int, digits []int, window []int, counter int) {
-	if counter == 3 {
-		return
-	}
-
-	max := slices.Max(window)
-	indexOfMax := lastIndex(batteries, max)
-
-	digits[indexOfMax] = max
-	batteries[indexOfMax] = 0
-
-	if len(batteries[indexOfMax:]) == 0 || slices.Max(batteries[indexOfMax:]) == 0 {
-		findLargestJoltage(batteries, digits, batteries[:indexOfMax], counter+1)
+	cacheKey := CacheKey{substring, counter - 1}
+	// Start building the largest number recursively from the first digit
+	withCurrentDigit := firstDigit * int(math.Pow(10, float64(counter-1)))
+	if cached, exists := cache[cacheKey]; exists {
+		withCurrentDigit += cached
 	} else {
-		findLargestJoltage(batteries, digits, batteries[indexOfMax:], counter+1)
+		value, err := findLargestJoltage(substring, counter-1, cache)
+		if err != nil {
+			return 0, err
+		}
+
+		cache[cacheKey] = value
+		withCurrentDigit += value
+	}
+
+	// Start building the largest number recursively from the second digit
+	cacheKey = CacheKey{substring, counter}
+	withoutCurrentDigit := 0
+	if cached, exists := cache[cacheKey]; exists {
+		withoutCurrentDigit = cached
+	} else {
+		value, err := findLargestJoltage(substring, counter, cache)
+		if err != nil {
+			return 0, err
+		}
+
+		cache[cacheKey] = value
+		withoutCurrentDigit = value
+	}
+
+	// Return the larger of them
+	if withCurrentDigit > withoutCurrentDigit {
+		return withCurrentDigit, nil
+	} else {
+		return withoutCurrentDigit, nil
 	}
 }
 
-func (b *Bank) GetLargestJoltage() int {
-	batteries := make([]int, len(b.batteries))
-	copy(batteries, b.batteries)
-
-	digits := make([]int, len(b.batteries))
-
-	findLargestJoltage(batteries, digits, batteries, 0)
-
-	return pruneJoltage(digits)
+func GetLargestJoltage(bank string) (int, error) {
+	cache := make(map[CacheKey]int)
+	return findLargestJoltage(bank, 12, cache)
 }
 
 func Solve(inputFilePath string) error {
@@ -98,9 +86,12 @@ func Solve(inputFilePath string) error {
 
 	sum := 0
 	for _, bankString := range input {
-		bank := Bank{}
-		bank.Parse(bankString)
-		sum += bank.GetLargestJoltage()
+		value, err := GetLargestJoltage(bankString)
+		if err != nil {
+			return fmt.Errorf("failed to find largest joltage for bank %s", bankString)
+		}
+
+		sum += value
 	}
 
 	fmt.Println(sum)
