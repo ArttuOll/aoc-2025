@@ -91,6 +91,7 @@ func Solve(inputFilePath string) error {
 
 		if isEmpty {
 			problems = append(problems, Problem{values: numbers, operand: operand})
+			numbers = make([]int, 0)
 			continue
 		}
 
@@ -100,6 +101,7 @@ func Solve(inputFilePath string) error {
 		}
 		numbers = append(numbers, newValue)
 	}
+	problems = append(problems, Problem{values: numbers, operand: operand})
 
 	result := 0
 	for _, problem := range problems {
