@@ -8,63 +8,34 @@ import (
 	"github.com/ArttuOll/aoc-2025/internal/input"
 )
 
-type TreeNode struct {
-	id       string
-	parents  []*TreeNode
-	children []*TreeNode
+type CacheKey struct {
+	row int
+	col int
 }
 
-func buildTree(grid [][]string, row, col int, nodes map[string]*TreeNode, parent *TreeNode) *TreeNode {
+func countPossiblePaths(grid [][]string, row int, col int, cache map[CacheKey]int) int {
 	// We're past the last row
-	if row >= len(grid) || col < 0 || col >= len(grid[row]) {
-		return nil
+	if row >= len(grid) {
+		return 1
 	}
+
+	cacheKey := CacheKey{row, col}
+	if paths, exists := cache[cacheKey]; exists {
+		return paths
+	}
+
+	count := 0
 
 	cell := grid[row][col]
-
-	if cell != "^" && cell != "S" {
-		return buildTree(grid, row+1, col, nodes, parent)
+	if cell == "^" {
+		// Found a splitter, count possible paths on its both sides
+		count = countPossiblePaths(grid, row+1, col-1, cache) + countPossiblePaths(grid, row+1, col+1, cache)
+	} else {
+		count = countPossiblePaths(grid, row+1, col, cache)
 	}
 
-	id := fmt.Sprintf("%v%v", row, col)
-
-	node, exists := nodes[id]
-	if !exists {
-		node = &TreeNode{
-			id:       id,
-			children: []*TreeNode{},
-			parents:  []*TreeNode{},
-		}
-		nodes[id] = node
-	}
-
-	if parent != nil {
-		node.parents = append(node.parents, parent)
-		parent.children = append(parent.children, node)
-	}
-
-	buildTree(grid, row+1, col-1, nodes, node)
-	buildTree(grid, row+1, col+1, nodes, node)
-
-	return node
-}
-
-func (t *TreeNode) getPaths(path []*TreeNode) [][]*TreeNode {
-	newPath := make([]*TreeNode, len(path))
-	copy(newPath, path)
-
-	// We're at a leaf node
-	if len(t.children) == 0 {
-		return [][]*TreeNode{newPath}
-	}
-
-	var paths [][]*TreeNode
-	for _, node := range t.children {
-		childPaths := node.getPaths(newPath)
-		paths = append(paths, childPaths...)
-	}
-
-	return paths
+	cache[CacheKey{row, col}] = count
+	return count
 }
 
 func Solve(inputFilePath string) error {
@@ -78,19 +49,11 @@ func Solve(inputFilePath string) error {
 		grid[row] = strings.Split(line, "")
 	}
 
-	startingCol := slices.Index(grid[0], "S")
+	startingPoint := slices.Index(grid[0], "S")
 
-	root := TreeNode{
-		id:       fmt.Sprintf("0%v", startingCol),
-		children: make([]*TreeNode, 0),
-		parents:  make([]*TreeNode, 0),
-	}
+	count := countPossiblePaths(grid, 0, startingPoint, make(map[CacheKey]int))
 
-	buildTree(grid, 0, startingCol, make(map[string]*TreeNode), &root)
-
-	paths := root.getPaths(nil)
-
-	fmt.Println(len(paths))
+	fmt.Println(count)
 
 	return nil
 }
