@@ -3,6 +3,7 @@ package a
 import (
 	"fmt"
 	"math"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -10,13 +11,14 @@ import (
 )
 
 type JunctionBox struct {
-	x       float64
-	y       float64
-	z       float64
-	circuit *Circuit
+	x float64
+	y float64
+	z float64
 }
 
-type Circuit map[JunctionBox]bool
+type Circuit struct {
+	junctionBoxes []JunctionBox
+}
 
 func (jb *JunctionBox) Parse(input string) error {
 	values := strings.Split(input, ",")
@@ -44,19 +46,26 @@ func (jb *JunctionBox) DistanceTo(other JunctionBox) float64 {
 	return math.Sqrt(math.Pow(jb.x-other.x, 2) + math.Pow(jb.y-other.y, 2) + math.Pow(jb.z-other.z, 2))
 }
 
-func findClosestTogether(junctionBoxes []JunctionBox) [2]JunctionBox {
-	shortestDistance := junctionBoxes[0].DistanceTo(junctionBoxes[1])
-	shortest := [2]JunctionBox{junctionBoxes[0], junctionBoxes[1]}
-	for i := 0; i < len(junctionBoxes); i++ {
-		first := junctionBoxes[i]
-		for j := 0; i < len(junctionBoxes); i++ {
-			second := junctionBoxes[j]
+func findClosestTogether(circuits []Circuit) [2]Circuit {
+	shortestDistance := circuits[0].junctionBoxes[0].DistanceTo(circuits[1].junctionBoxes[0])
+	var shortest [2]Circuit
 
-			// Both are already a part of some circuit
-			if first.circuit != nil && second.circuit != nil {
+	for i := range circuits {
+		first := circuits[i]
+		for j := range circuits {
+			second := circuits[j]
+
+			// We're not connecting circuits with more than one junction box
+			if len(first.junctionBoxes) > 1 && len(second.junctionBoxes) > 1 {
 				continue
 			}
 
+			// The circuits are the same
+			if slices.Equal(first.junctionBoxes, second.junctionBoxes) {
+				continue
+			}
+
+			// ??
 			if distance := first.DistanceTo(second); distance < shortestDistance {
 				shortestDistance = distance
 				shortest = [2]JunctionBox{first, second}
@@ -67,11 +76,28 @@ func findClosestTogether(junctionBoxes []JunctionBox) [2]JunctionBox {
 	return shortest
 }
 
-func connectJunctionBoxesToCircuit(junctionBoxes [2]JunctionBox, circuits []Circuit) {
-	if circuit := junctionBoxes[0].circuit; circuit != nil {
-		array := *circuit
-		array = append(array, junctionBoxes[1])
+func connectJunctionBoxesToCircuitOrReturnNew(junctionBoxes [2]JunctionBox) Circuit {
+	first := junctionBoxes[0]
+	second := junctionBoxes[1]
+
+	if circuit := first.circuit; circuit != nil {
+		circuitMap := *circuit
+		circuitMap[second] = true
+		return nil
 	}
+
+	if circuit := second.circuit; circuit != nil {
+		circuitMap := *circuit
+		circuitMap[first] = true
+		return nil
+	}
+
+	circuit := map[JunctionBox]bool{
+		first:  true,
+		second: true,
+	}
+
+	return circuit
 }
 
 func Solve(inputFilePath string) error {
@@ -80,20 +106,38 @@ func Solve(inputFilePath string) error {
 		return fmt.Errorf("failed to read the input: %w", err)
 	}
 
-	var junctionBoxes []JunctionBox
+	var circuits []Circuit
 	for _, line := range input {
 		junctionBox := JunctionBox{}
 		junctionBox.Parse(line)
-		junctionBoxes = append(junctionBoxes, junctionBox)
+		circuit := Circuit{
+			junctionBoxes: map[JunctionBox]bool{junctionBox: true},
+		}
 	}
 
-	var circuits []Circuit
-	for range 1000 {
+	for range 10 {
 		closest := findClosestTogether(junctionBoxes)
-
+		newCircuit := connectJunctionBoxesToCircuitOrReturnNew(closest)
+		if newCircuit != nil {
+			circuits = append(circuits, newCircuit)
+		}
 	}
 
-	fmt.Println(len(junctionBoxes))
+	slices.SortFunc(circuits, func(a Circuit, b Circuit) int {
+		if len(a) < len(b) {
+			return -1
+		} else if len(a) > len(b) {
+			return 1
+		}
+
+		return 0
+	})
+
+	longest := circuits[len(circuits)-1]
+	secondLongest := circuits[len(circuits)-2]
+	thirdLongest := circuits[len(circuits)-3]
+
+	fmt.Println(len(longest) * len(secondLongest) * len(thirdLongest))
 
 	return nil
 }
