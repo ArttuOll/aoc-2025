@@ -14,10 +14,36 @@ type JunctionBox struct {
 	x float64
 	y float64
 	z float64
+
+	parent *JunctionBox
 }
 
-type Circuit struct {
-	junctionBoxes []JunctionBox
+func newJunctionBox(x, y, z float64, parent *JunctionBox) JunctionBox {
+	jb := JunctionBox{}
+	jb.x = x
+	jb.y = y
+	jb.z = z
+	jb.parent = &jb
+	return jb
+}
+
+func (jb *JunctionBox) find(other JunctionBox) JunctionBox {
+	// We have reached the root
+	if other.parent == &other {
+		return other
+	}
+
+	return jb.find(*other.parent)
+}
+
+func (jb *JunctionBox) union(other JunctionBox) {
+	root1 := jb.find(*jb)
+	root2 := other.find(other)
+
+	// The roots are different, the boxes are not part of the same circuit
+	if root1 != root2 {
+		root2.parent = &root1
+	}
 }
 
 func (jb *JunctionBox) Parse(input string) error {
@@ -46,8 +72,34 @@ func (jb *JunctionBox) DistanceTo(other JunctionBox) float64 {
 	return math.Sqrt(math.Pow(jb.x-other.x, 2) + math.Pow(jb.y-other.y, 2) + math.Pow(jb.z-other.z, 2))
 }
 
+func (c *Circuit) Equals(other Circuit) bool {
+	if len(c.junctionBoxes) != len(other.junctionBoxes) {
+		return false
+	}
+
+	for junctionBox := range c.junctionBoxes {
+		if _, ok := other.junctionBoxes[junctionBox]; !ok {
+			return false
+		}
+	}
+
+	for junctionBox := range other.junctionBoxes {
+		if _, ok := c.junctionBoxes[junctionBox]; !ok {
+			return false
+		}
+	}
+
+	return true
+}
+
+func (c *Circuit) Merge(other Circuit) {
+	for junctionBox := range other.junctionBoxes {
+		c.junctionBoxes[junctionBox] = true
+	}
+}
+
 func findClosestTogether(circuits []Circuit) [2]Circuit {
-	shortestDistance := circuits[0].junctionBoxes[0].DistanceTo(circuits[1].junctionBoxes[0])
+	shortestDistance := 100000.0
 	var shortest [2]Circuit
 
 	for i := range circuits {
@@ -55,49 +107,23 @@ func findClosestTogether(circuits []Circuit) [2]Circuit {
 		for j := range circuits {
 			second := circuits[j]
 
-			// We're not connecting circuits with more than one junction box
-			if len(first.junctionBoxes) > 1 && len(second.junctionBoxes) > 1 {
-				continue
-			}
-
 			// The circuits are the same
-			if slices.Equal(first.junctionBoxes, second.junctionBoxes) {
+			if first.Equals(second) {
 				continue
 			}
 
-			// ??
-			if distance := first.DistanceTo(second); distance < shortestDistance {
-				shortestDistance = distance
-				shortest = [2]JunctionBox{first, second}
+			for fjb := range first.junctionBoxes {
+				for sjb := range second.junctionBoxes {
+					if distance := fjb.DistanceTo(sjb); distance < shortestDistance {
+						shortestDistance = distance
+						shortest = [2]Circuit{first, second}
+					}
+				}
 			}
 		}
 	}
 
 	return shortest
-}
-
-func connectJunctionBoxesToCircuitOrReturnNew(junctionBoxes [2]JunctionBox) Circuit {
-	first := junctionBoxes[0]
-	second := junctionBoxes[1]
-
-	if circuit := first.circuit; circuit != nil {
-		circuitMap := *circuit
-		circuitMap[second] = true
-		return nil
-	}
-
-	if circuit := second.circuit; circuit != nil {
-		circuitMap := *circuit
-		circuitMap[first] = true
-		return nil
-	}
-
-	circuit := map[JunctionBox]bool{
-		first:  true,
-		second: true,
-	}
-
-	return circuit
 }
 
 func Solve(inputFilePath string) error {
@@ -113,14 +139,17 @@ func Solve(inputFilePath string) error {
 		circuit := Circuit{
 			junctionBoxes: map[JunctionBox]bool{junctionBox: true},
 		}
+
+		circuits = append(circuits, circuit)
 	}
 
 	for range 10 {
-		closest := findClosestTogether(junctionBoxes)
-		newCircuit := connectJunctionBoxesToCircuitOrReturnNew(closest)
-		if newCircuit != nil {
-			circuits = append(circuits, newCircuit)
-		}
+		closest := findClosestTogether(circuits)
+		first := closest[0]
+		second := closest[1]
+		first.Merge(second)
+
+		slices.Delete(circuits, slices.Index(circuits, first))
 	}
 
 	slices.SortFunc(circuits, func(a Circuit, b Circuit) int {
