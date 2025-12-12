@@ -1,6 +1,7 @@
 package a
 
 import (
+	"cmp"
 	"fmt"
 	"math"
 	"slices"
@@ -16,33 +17,31 @@ type JunctionBox struct {
 	z float64
 
 	parent *JunctionBox
+	size   int
 }
 
-func newJunctionBox(x, y, z float64, parent *JunctionBox) JunctionBox {
-	jb := JunctionBox{}
-	jb.x = x
-	jb.y = y
-	jb.z = z
-	jb.parent = &jb
+func (jb *JunctionBox) Find() *JunctionBox {
+	for jb.parent != jb {
+		jb.parent = jb.parent.parent
+		jb = jb.parent
+	}
+
 	return jb
 }
 
-func (jb *JunctionBox) find(other JunctionBox) JunctionBox {
-	// We have reached the root
-	if other.parent == &other {
-		return other
-	}
-
-	return jb.find(*other.parent)
-}
-
-func (jb *JunctionBox) union(other JunctionBox) {
-	root1 := jb.find(*jb)
-	root2 := other.find(other)
+func (jb *JunctionBox) Union(other *JunctionBox) {
+	root1 := jb.Find()
+	root2 := other.Find()
 
 	// The roots are different, the boxes are not part of the same circuit
 	if root1 != root2 {
-		root2.parent = &root1
+		if root1.size < root2.size {
+			root1.parent = root2
+			root2.size += root1.size
+		} else {
+			root2.parent = root1
+			root1.size += root2.size
+		}
 	}
 }
 
@@ -64,66 +63,53 @@ func (jb *JunctionBox) Parse(input string) error {
 	jb.x = x
 	jb.y = y
 	jb.z = z
+	jb.parent = jb
+	jb.size = 1
 
 	return nil
 }
 
-func (jb *JunctionBox) DistanceTo(other JunctionBox) float64 {
+func (jb *JunctionBox) DistanceTo(other *JunctionBox) float64 {
 	return math.Sqrt(math.Pow(jb.x-other.x, 2) + math.Pow(jb.y-other.y, 2) + math.Pow(jb.z-other.z, 2))
 }
 
-func (c *Circuit) Equals(other Circuit) bool {
-	if len(c.junctionBoxes) != len(other.junctionBoxes) {
-		return false
-	}
+func getPairs(junctionBoxes []*JunctionBox) [][2]*JunctionBox {
+	var result [][2]*JunctionBox
+	for i := range junctionBoxes {
+		first := junctionBoxes[i]
+		for j := range junctionBoxes {
+			second := junctionBoxes[j]
 
-	for junctionBox := range c.junctionBoxes {
-		if _, ok := other.junctionBoxes[junctionBox]; !ok {
-			return false
-		}
-	}
-
-	for junctionBox := range other.junctionBoxes {
-		if _, ok := c.junctionBoxes[junctionBox]; !ok {
-			return false
-		}
-	}
-
-	return true
-}
-
-func (c *Circuit) Merge(other Circuit) {
-	for junctionBox := range other.junctionBoxes {
-		c.junctionBoxes[junctionBox] = true
-	}
-}
-
-func findClosestTogether(circuits []Circuit) [2]Circuit {
-	shortestDistance := 100000.0
-	var shortest [2]Circuit
-
-	for i := range circuits {
-		first := circuits[i]
-		for j := range circuits {
-			second := circuits[j]
-
-			// The circuits are the same
-			if first.Equals(second) {
+			if first == second {
 				continue
 			}
 
-			for fjb := range first.junctionBoxes {
-				for sjb := range second.junctionBoxes {
-					if distance := fjb.DistanceTo(sjb); distance < shortestDistance {
-						shortestDistance = distance
-						shortest = [2]Circuit{first, second}
-					}
-				}
+			if slices.Contains(result, [2]*JunctionBox{junctionBoxes[j], junctionBoxes[i]}) {
+				continue
 			}
+
+			result = append(result, [2]*JunctionBox{junctionBoxes[i], junctionBoxes[j]})
 		}
 	}
 
-	return shortest
+	return result
+}
+
+func sortJunctionBoxPairsByDistance(pairs [][2]*JunctionBox) {
+	slices.SortFunc(pairs, func(a, b [2]*JunctionBox) int {
+		a1 := a[0]
+		a2 := a[1]
+		b1 := b[0]
+		b2 := b[1]
+
+		return cmp.Compare(a1.DistanceTo(a2), b1.DistanceTo(b2))
+	})
+}
+
+func sortJunctionBoxesBySize(junctionBoxes []*JunctionBox) {
+	slices.SortFunc(junctionBoxes, func(a, b *JunctionBox) int {
+		return cmp.Compare(a.size, b.size)
+	})
 }
 
 func Solve(inputFilePath string) error {
@@ -132,41 +118,27 @@ func Solve(inputFilePath string) error {
 		return fmt.Errorf("failed to read the input: %w", err)
 	}
 
-	var circuits []Circuit
+	var junctionBoxes []*JunctionBox
 	for _, line := range input {
-		junctionBox := JunctionBox{}
+		junctionBox := &JunctionBox{}
 		junctionBox.Parse(line)
-		circuit := Circuit{
-			junctionBoxes: map[JunctionBox]bool{junctionBox: true},
-		}
-
-		circuits = append(circuits, circuit)
+		junctionBoxes = append(junctionBoxes, junctionBox)
 	}
 
-	for range 10 {
-		closest := findClosestTogether(circuits)
-		first := closest[0]
-		second := closest[1]
-		first.Merge(second)
-
-		slices.Delete(circuits, slices.Index(circuits, first))
+	junctionBoxPairs := getPairs(junctionBoxes)
+	sortJunctionBoxPairsByDistance(junctionBoxPairs)
+	for i := range 1000 {
+		pair := junctionBoxPairs[i]
+		pair[0].Union(pair[1])
 	}
 
-	slices.SortFunc(circuits, func(a Circuit, b Circuit) int {
-		if len(a) < len(b) {
-			return -1
-		} else if len(a) > len(b) {
-			return 1
-		}
+	sortJunctionBoxesBySize(junctionBoxes)
 
-		return 0
-	})
+	longest := junctionBoxes[len(junctionBoxes)-1]
+	secondLongest := junctionBoxes[len(junctionBoxes)-2]
+	thirdLongest := junctionBoxes[len(junctionBoxes)-3]
 
-	longest := circuits[len(circuits)-1]
-	secondLongest := circuits[len(circuits)-2]
-	thirdLongest := circuits[len(circuits)-3]
-
-	fmt.Println(len(longest) * len(secondLongest) * len(thirdLongest))
+	fmt.Println(longest.size * secondLongest.size * thirdLongest.size)
 
 	return nil
 }
