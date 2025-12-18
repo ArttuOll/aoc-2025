@@ -75,19 +75,10 @@ func (jb *JunctionBox) DistanceTo(other *JunctionBox) float64 {
 
 func getPairs(junctionBoxes []*JunctionBox) [][2]*JunctionBox {
 	var result [][2]*JunctionBox
-	for i := range junctionBoxes {
-		first := junctionBoxes[i]
-		for j := range junctionBoxes {
-			second := junctionBoxes[j]
+	n := len(junctionBoxes)
 
-			if first == second {
-				continue
-			}
-
-			if slices.Contains(result, [2]*JunctionBox{junctionBoxes[j], junctionBoxes[i]}) {
-				continue
-			}
-
+	for i := range n {
+		for j := i + 1; j < n; j++ {
 			result = append(result, [2]*JunctionBox{junctionBoxes[i], junctionBoxes[j]})
 		}
 	}
